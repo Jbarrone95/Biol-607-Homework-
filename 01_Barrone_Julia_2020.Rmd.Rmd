@@ -1,0 +1,68 @@
+---
+title: 'Homework #1'
+author: "Julia Barrone"
+date: "9/15/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load dataset of quakes in Fiji:
+```{r dataset}
+
+data(quakes)
+
+str(quakes)
+
+summary(quakes)
+
+```
+
+Display only the "long" column of the dataset: 
+```{r column_long}
+
+quakes$long
+
+```
+
+Aplying the unique function to the dataset: 
+```{r unique_function}
+
+unique(quakes)
+```
+
+How many unique stations? 102
+```{r unique_stations}
+
+unique_stations <- unique(quakes[,5])
+
+str(unique_stations)
+
+summary(unique_stations)
+
+length(unique_stations)
+```
+
+Range of depths where quakes occur:
+```{r quake_range}
+
+quakes_range <- quakes[,3]
+
+range(quakes_range)
+```
+
+Location of earthquake of largest magnitude: 
+```{r magnitude}
+quakes_magnitude <- quakes[,4]
+
+max(quakes_magnitude)
+
+which(quakes[,4] == 6.4)
+
+View(quakes)
+```
+
+Latitude and Longitude = -15.56 167.62
+The Coral Sea, off the shores of Vanuatu
