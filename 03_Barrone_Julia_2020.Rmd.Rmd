@@ -1,0 +1,233 @@
+---
+title: 'Homework Week #3'
+author: "Julia Barrone"
+date: "9/26/2020"
+output: html_document
+---
+
+
+1a. I tripped up on the 3rd try.
+```{r load_dataset}
+
+vole_vaso <- c(98,96,94,88,86,82,77,74,70,60,
+           59,52,50,47,40,35,29,13,6,5)#load dataframe to R 
+
+
+```
+
+1b. What is the mean, median, sd, and interquartile range of the sample? The mean is 58.05, the median is 59.5, the sd is 29.75244, and the IQR is 44.25.
+```{r information}
+
+library(dplyr) #load dplyr to use pipes 
+
+mean(vole_vaso) #find the mean
+median(vole_vaso) #find the median
+sd(vole_vaso) #find the sd 
+IQR(vole_vaso) #summary function to find quartiles 
+
+
+```
+
+1c. What is the standard error of the mean (do this with a formula!)? The standard error of the mean is 6.652848.
+```{r se}
+
+(29.75244/sqrt(20)) #the formula to calculate se is sd of the sample divided by the square root of the sample size. I filled in those values with the information from the above questions
+
+```
+
+1d.  What does the standard error of the mean tell you about our estimate of the mean values of the population of vole vassopressin? 
+```{r se inference}
+# standard error tells us how close our mean of any given sample of the population is compared with the true population mean. In other words, it measures preciseness.
+
+```
+
+2a.  Use sample() to get just one resample with a sample size of 10. What is its upper quartile? The upper quartile of my sample is 92.5.   
+```{r upper quartiles}
+quantile(vole_vaso, probs = 0.75) #getting the upper quartile range from the example 
+
+
+sample_vole_vasco <- sample(vole_vaso, size = 10) #sampling vole_vasco and asking for a sample size of 10 values without replacement.
+
+quantile(sample_vole_vasco, probs = 0.75) #getting the upper quartile value of my sample 
+
+```
+
+2b. Build an initial data frame for simulations with the sample sizes 5 through 20.   
+```{r dataframe}
+
+                                 
+df <- data.frame(samp_size = 5:20) #creating a new dataframe for simulations with sample sizes 5-20 
+
+df
+
+  
+```
+
+2c. Use this data frame to get simulated upper quartiles for each sample size. using 1,000 simulations   
+```{r upper quartile}
+
+samp_replicate <- df %>%
+  # taking the new dataframe of sample sizes 5-20 and going rowwise, accounting for sample size 
+  rowwise(samp_size) %>%
+  # replicate 1000 times but get the upper quartiles   
+  summarize(vole_samp = replicate(1000, quantile(sample(vole_vaso, samp_size), probs = 0.75))) #sample of dataset replicated 1000 times
+
+samp_replicate#view samp_replicate to see the upper quartiles for each sample size 
+
+```
+
+2d. With a ggplot, make a guesstimate as to the best sample size for estimating the upper quartile of the population. Use whatever geom you feel makes things most easy to see. E.C. Add a red dashed line using geom_vline() or geom_hline() to show where that should be, perhaps. 
+I am guesstimating that the best sample size for estimating the upper quartile of the population is at about 15 because the violin falls right around the upper quartile(75-100%) of our simulations on the y axis.
+```{r ggplot}
+
+library(ggplot2) #load ggplot 
+
+plot_values <- ggplot(data = samp_replicate, 
+                       mapping = aes(x = samp_size,
+                                     y = vole_samp, group = samp_size))#setting up dataframe to plot data using ggplot of our simulated quartiles for each sample size. Using the mapping = aes to designate vole_samp on the x axis and samp_size on the y axis 
+
+?geom_vline #figuring out how to use vline
+
+plot_values +
+  geom_violin() +#plotting using geom_violin because the geom_point representation was unclear(too many points).I like geom_violin because it is a combination of a density and box plot.  
+geom_vline(xintercept = 15, color = "red", linetype="dashed") #extra credit for showing a red, dashed line at samp size of 15 
+```
+
+2e. Plot the SE of the estimate of the upper quantile by sample size. Again, what it the best way to see this? Does it level off? Is there a level you feel acceptable? Justify your answer. Does this match with what you put in 3d? 
+This geom_point plot shows how SE of the estimate of the upper quantile decreases by sample size. Standard error decreases when sample size increases because generally, the more data you have, the closer the sample gets to the true size of the population, which we can see here. It doesn't level off anywhere, it just shows a steady decrease. It does look like the SE is getting very close to 0 by sample size 20. This does not match my guesstimate of sample size 15 in my previous answer. 
+```{r standard error}
+
+se_samp_replicate <- samp_replicate %>%
+  group_by(samp_size) %>%
+  mutate (se = (sd(vole_samp)/sqrt(length(vole_samp))))#setting up a new dataframe of my simulated upper quartiles for my sample size but grouping by sample size. Adding a column of standard error for each sample size by using the formula for standard error 
+
+se_plot <- ggplot(data = se_samp_replicate, 
+                       mapping = aes(x = samp_size,
+                                     y = se)) #setting up to plot with ggplot taking from the new data frame that I just created. I put samp_size on my x axis and standard error on my y axis. 
+
+
+se_plot +
+  geom_point() #plotting to a point graph 
+
+# standard error tells us how close our mean of any given sample of the population is compared with the true population mean. In other words, it measures preciseness.
+```
+
+3a. Some setup. Run the code below. For extra credit, look up the packages and functions used and explain what is going on here. But, that’s EC.  
+```{r simulations}
+
+library(dplyr) #helps with data manipulation
+library(readr) #helps read rectangular data usually contained in csv, tsv and twt files 
+library(ggplot2) #aids in plotting 
+library(forcats) #helps reordering factor levels which aids in presentation  
+
+
+theme_set(theme_bw(base_size=12)) #theme_set is used to automaticlly apply a theme to plots that you create. This code chose a black and white theme setting text to size 12
+
+ice <- read_csv("NH_seaice_extent_monthly_1978_2016.csv") %>%#reading our datafile and adding it to an object 
+  mutate(Month_Name = factor(Month_Name),#making new column in dataset, encoding a vector as a factor, in this case, "Month_Name"
+   Month_Name = fct_reorder(Month_Name, Month)) #this fct_reorder is having the Month_Name column be the same order as the Month Column. So row 1 will display 11 in the month column and Nov in the Month_Name column 
+
+ice #view ice 
+
+```
+
+
+
+3b. Make a boxplot showing the variability in sea ice extent every month.  
+```{r boxplot}
+
+boxplot(Extent ~ Month_Name, data = ice) #making a boxplot to show month on the x axis and variability in sea ice extent on the y 
+
+
+```
+
+3c. Use dplyr to get the annual minimum sea ice extent. Plot minimum ice by year. What do you observe? From the plot, there are slight increases from year to year but overall, there is a clear decrease in ice extent as the years go on
+```{r dplyr}
+
+library(dplyr)  #load dplyr   
+annual_min <- ice %>% #creating new dataframe containing minimum sea ice extent values for each year
+    group_by(Year) %>% #group by year
+    slice(which.min(Extent)) #index rows by integer location. remove duplicate rows and select minimum values 
+
+
+plot(Extent ~ Year, data = annual_min)#plot with minimum sea ice extent on the y axis and year on the x axis taking the columns from the new dataframe that I just created
+```
+
+3d. One thing that’s really cool about faceting is that you can use cut_() functions on continuos variables to make facets by groups of continuous variables. To see what I mean, try cut_interval(1:10, n = 5) See how it makes five bins of even width? We use cut_interval() or other cut functions with faceting like so facet_wrap(~cut_interval(some_variable)).
+
+With the original data, plot sea ice by year, with different lines (oh! What geom will you need for that?) for different months. Then, use facet_wrap and cut_interval(Month, n=4) to split the plot into seasons.   
+```{r facet plot}
+
+cut_interval(1:10, n = 5)#trying code in the prompt 
+
+ice_by_year <- ggplot(data = ice,
+                        mapping = aes(x = Year,
+                                      y = Extent, group = Month, color = Month))#create new vector for plotting sea ice by year. To represent months by different lines on the graph, I had to group by month. Then to distinguish months, I added a color gradient to months. 
+
+ice_by_year +
+  geom_line() #plotting my new vector to show sea ice by year with different lines for different months. I am using a line geom to represent this 
+  
+ice_by_year +
+  geom_line(aes(group = cut_interval(Month, n = 4))) +
+  facet_wrap(~Month)
+ #using facet_wrap to split the line graph by month and then into intervals to represent seasons
+```
+
+3e. Last, make a line plot of sea ice by month with different lines as different years. Gussy it up with colors by year, a different theme, critical values, and whatever other annotations, changes to axes, etc., you think best show the story of this data. For ideas, see the lab, and look at various palettes around. Extra credit for using colorfindr to make a palette. 
+```{r line plot}
+
+library(ggplot2) #load ggplot
+
+ice_by_month <- ggplot(data = ice,
+                        mapping = aes(x = Month_Name,
+                                      y = Extent, group = Year, color = Year))#create new vector for plotting sea ice by month. To represent years by different lines on the graph, I had to group by year. Then to distinguish years, I added a color gradient to years. 
+
+
+library(ggthemes)#load ggthemes 
+
+fancy_ice_by_month <- ice_by_month + 
+  labs(title = "Sea Ice by Month from 1978-2016",
+       x = "Month",
+       y = "Sea Ice",
+       color = "Year")
+
+fancy_ice_by_month + 
+  geom_line() +
+  theme_gray()
+  
+  
+library(colorfindr) #installed and loaded colorfinder for EC
+
+
+pic1 <- get_colors("https://www.thefactsite.com/wp-content/uploads/2019/03/autumn-season.jpg") %>% make_palette(n=40)  #I was able to make my palette but I couldn't find code to incorporate it into my graph 
+
+```
+
+---------------
+Extra Credit 
+---------------
+
+
+3g. Extra Credit. Use the data and make something wholly new and awesome. Even extra extra credit for something amazing animated. I like this plot because it shows a decrease in sea ice in every month as time goes on. 
+```{r extra credit}
+library(ggthemes)#loading theme library 
+
+New <- ggplot(data = ice,
+                        mapping = aes(x = Year,
+                                      y = Extent)) #Making a new dataframe to plot year on the x axis, and sea ice on the y
+
+New +
+  labs(title = "Sea Ice by Year Grouped by Month", #plotting my new dataframe and adding a title and titling the x and y axis 
+       x = "Year",
+       y = "Sea Ice")+
+  geom_density2d() + #I want a graph showing density
+  theme_few() + #adding a theme to my plot 
+  facet_grid(~Month_Name) #grouping the data by month in the plot 
+
+#this plot is intersting because it represents the same shape as the boxplot in the above question but it is also showing density by month through the years. The only downside of this plot is that the x axis for the years in very crowded and illegible.
+
+
+
+```
+
+My github homework link is here: https://github.com/Jbarrone95/Biol-607-Homework- 
