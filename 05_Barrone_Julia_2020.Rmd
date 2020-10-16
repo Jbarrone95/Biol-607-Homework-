@@ -1,0 +1,321 @@
+---
+title: "Homework 5"
+author: "Julia Barrone"
+date: "10/10/2020"
+output: html_document
+---
+
+ 1A.
+```{r 1a}
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+#loading the libraries that I need 
+
+
+language <- read.csv("chap16q15LanguageGreyMatter.csv")#reading in my data to r
+
+ggplot(data = language,
+       mapping = aes(x = proficiency,
+                     y = greymatter)) + 
+         geom_point()
+#plotting greymatter and proficiency in a scatter plot
+
+
+
+```
+
+1B.
+```{r 1b}
+
+cor(language$proficiency, language$greymatter) #asking for the correlation between the two variables 
+
+#0.8183134 is the correlation between proficiency and greymatter in the dataset 
+```
+
+
+1C.
+```{r 1c}
+
+cor.test(language$greymatter, language$proficiency) #testing our null hypothesis that there is 0 correlation between proficiency and greymatter
+
+#We can reject the null hypothesis based on the statistics. R is .818 and the 95% confidence intervals are 0.61 0.92, which doesn't contain 0 which further supports our decision to reject the null hypothesis. We can clearly see from our data points that there is a trend as greymatter increases, proficiency also increases.  
+
+```
+1D.
+```{r 1d}
+#In part C, I used Pearson's correlation and it has a few main assumptions: The two variables have a bivariate normal distribution, the sample of individuals are a random sample from the population, and the relationship between the two variables is linear.  
+
+```
+
+1E.
+```{r 1e}
+
+#Our scatter plot supports the assumption that the relationship between the two variables is linear because our scatter plot doesn't display any curves or other patterns. The scatter plot suggests that there is a correlation between the two. It appears that as grey matter increases, proficiency also increases. We can also check for normal distribution by looking at histograms of the x and y variables.  
+
+
+#looking at the histograms of the x and y variables 
+ggplot(data = language,
+       mapping = aes(x = greymatter)) + geom_histogram()
+
+ggplot(data = language,
+       mapping = aes(x = proficiency)) + geom_histogram()
+```
+1F.
+```{r 1f}
+#Our results do demonstrate that second language proficiency affects greymatter density in the brain because the correlation is 0.8183134 and the p-value is less than 0.05 which provides further support. Also, the greater our t value, which is the calculated difference represented in units of standard error, the greater evidence against our null hypothesis. 
+
+```
+
+2A.
+```{r 2a}
+liver <- read.csv("chap16q19LiverPreparation.csv") #loading in the dataset 
+
+cor(liver$concentration, liver$unboundFraction) #calculating the correlation coefficient 
+
+#The correlation coefficient is -0.8563765. This indicates a high negative correlation 
+
+```
+2B.
+```{r 2b}
+
+ggplot(data = liver,
+       mapping = aes(x = concentration,
+                     y = unboundFraction)) + geom_point() #plotting the relationship between the two variables in a graph using ggplot
+
+
+```
+
+2C.
+```{r 2c}
+
+#The correlation coefficient is -0.8563765. There are many reasons why it is not near the maximum possible value. One possibility is that there are outliers that are skewing the relationship. Another could be because there is such a small sample size(5). From the plot, it also looks like there is a small curve in the relationship of the two variables so that might be another factor why the correlation isn't 1. Pearson’s correlation coefficients measure linear relationships. 
+
+```
+
+2D.
+```{r 2d}
+
+#To meet the assumptions of the correlation analysis, we could try log transformation, square root transformation or arcsine transformation. If those are unsuccessful, we could also try another correlation method such as Spearmans.
+
+
+#If the log transformations still don't satisfy the assumptions, a more suitable correlation anaylsis would be the Spearman's rank correlation. It is nonparametric which means it has no assumptions of the distributions of the x and y variables but it assumes the observations are from a random sample of the population. It assumes that the rank between the two variables is linear.  
+
+cor(liver$concentration, liver$unboundFraction, method = "spearman") #asking for spearmans correlation by specifying Spearman 
+
+```
+3A.
+```{r 3a}
+cats_df <- data.frame("cats"= c(-0.30,0.42,0.85,-0.45,0.22,-0.12,1.46,	-0.79,0.40,-0.07),
+                   "happiness_score" = c(-0.57,-0.10,-0.04,-0.29,0.42,-0.92,	0.99,-0.62,1.14,0.33)) #creating a dataframe of the data 
+
+
+cor(cats_df$cats, cats_df$happiness_score) #asking for the correlation 
+
+
+#The two variables do have a moderate positive correlation. The correlation is 0.6758738. The test shows us how correlated the x and y variables are to each other. It measures how the two variables change together along a line.   
+
+```
+
+3B.
+```{r 3b}
+
+cor.test(cats_df$cats, cats_df$happiness_score) #further investigating the relationship between the x and y variables 
+?cor.test
+
+
+sqrt((1-(0.6758738^2))/(10-2)) #calculating standard error
+
+#The standard error is 0.260575
+
+```
+3C.
+```{r 3c}
+
+cats_se <- replicate(1000, cor(sample_n(cats_df,
+                               size = nrow(cats_df), replace = TRUE))[1,2]) #asking for 1000 simulation correlations from our cat dataframe with replacement. We are asking for an indices of [1,2] because it will give us a 2x2 table    
+
+
+sd(cats_se) #getting our standard error of the simulations.. 0.1452245 
+
+#The standard error of our simulations is much smaller than our standard error from 3B and the smaller, the better. A small SE indicates the more likely it is that any sample mean is close to the population mean. This makes sense because we have 1000 simulations in this example. 
+
+```
+
+4A.
+```{r 4a}
+
+plant <- read.csv("chap17q19GrasslandNutrientsPlantSpecies.csv") #reading in the data 
+
+ggplot(data = plant,
+       mapping = aes(x = nutrients,
+                     y = species)) + geom_point() #the explanatory variable should be the nutrients and the response variable should be the species since the species are responding to the nutrients 
+
+```
+
+4B
+```{r 4b}
+
+
+plant_lm <- lm(data = plant, species ~ nutrients)
+ #finding the linear model of the plant data
+
+?lm
+#Coefficients:
+#(Intercept)    nutrients  
+#     34.110       -3.339  
+
+#The rate of change, or slope is -3.339. Rate of change shows change in value over a defined period of time
+
+###Provide a standard error for your estimate
+cor(plant$species, plant$nutrients)#finding correlation coefficient, also known as r 
+
+sqrt((1-(-0.7321056^2))/(10-2)) #calculating the standard error for my estimate 
+# SE is 0.438175
+
+```
+4C
+```{r 4c}
+
+plot(data = plant, species ~ nutrients) + #plotting species on y axis and nutrients on x axis 
+abline(plant_lm) #plotting the least-squares regression line to the plot
+
+?abline
+
+#Based on our correlation, -0.7321056, we can reason that about 73% of the variation in the number of plant species is explained by the number of nutrients added because that is the correlation explaining the slope, which is how nutrients are changing species in the experiment.  
+ 
+
+
+
+```
+4D
+```{r 4d}
+
+cor.test(plant$nutrients, plant$species)
+
+#According to the correlation test, it looks like the effect of nutrients has a negative correlation with the number of plant species. Correlation is -0.7321056 and we have a small p value . Thus, we can reject our null hypothesis. 
+```
+
+
+5A
+```{r 5a}
+
+beetle <- read.csv("chap17q25BeetleWingsAndHorns.csv")
+
+linear_beetle <- lm(data = beetle, wingMass ~ hornSize)  #Create a linear model of data 
+beetle_res <- residuals(linear_beetle)#calculate the residuals of the dataset. Residuals measure the scatter of points above and below the least squares regression line 
+
+#          1           2           3           4 
+#-32.8573453 -11.0942627 -16.1512536 -13.6164867 
+#          5           6           7           8 
+# -1.3985636  22.4709703   9.1878142   4.7792124 
+#          9          10          11          12 
+#  4.4921151   2.1573482  -0.1405014  -3.0362005 
+#         13          14          15          16 
+#  3.6089591  11.6089591  19.4724013  20.4724013 
+#         17          18          19 
+#  2.7236525  -6.3351291 -16.3440907
+
+
+```
+
+5B
+```{r 5b}
+
+
+plot(linear_beetle, which = 1)#plotting the residuals vs fitted 
+plot(linear_beetle, which = 2) #Displaying a normal QQ plot 
+plot(linear_beetle, which = 4)#plotting cook's distance
+plot(linear_beetle, which = 5)
+
+plot(beetle_res) #plotting just the residuals 
+
+```
+
+5C
+```{r 5c}
+
+#Our residuals vs fitted plot do not show the linear relationship that we are expecting. It appears there may be a non-linear relationship between the variables do not distribute randomly around the 0 line. It looks like there might be heteroskedacity, unequal scatter, to the left of the plot. There are also a few residual points that stick out from the rest of the plot which could indicate that there are outliers. Another thing that could be affecting our plot is that we have a very small sample size of 19. 
+
+#Based on our plot, it is clear that the assumptions of linear regression, listed below, are not met 
+#At each x value, there is a population of posssible y values whose mean lies on the true regression line. #At each value of x, the distribution of possible y values is normal. 
+#The variance of y values is the same at all values of x.
+#At each value of x, the y measurements represent a random sample from the population of possible y values. 
+```
+
+5D
+```{r 5d}
+
+#We could try transforming our data or using different models that would better fit our data to give us a residual or qqplot that we'd expect. 
+
+
+```
+
+5E
+```{r 5e}
+
+#Yes our qqplot looked a bit off as well. Instead of displaying a straight line, the plot looks lightly tailed. If we don't transform the data properly to meet the assumptions, then all our analyses and plots will be off becuase the data won't meet the assumptions to fit those tests and plots. 
+
+```
+
+6A
+```{r 6a}
+
+teeth <- read.csv("chap17q30NuclearTeeth.csv")#loading in the data 
+
+plot(data = teeth, dateOfBirth ~ deltaC14) + abline(1992.26737, -0.05326 ) #asking for the plot of teeth data seeing the line of best fit 
+
+lm(data = teeth, dateOfBirth ~ deltaC14) #finding the linear model of the teeth data 
+#Coefficients:
+#(Intercept)  dateOfBirth  
+# 1992.26737     -0.05326 
+# The slope is -0.05326
+
+
+```
+
+6B
+```{r 6b}
+
+#The confidence bands are the slightly curved ones closest to the least squares regression line on either side of the line. The confidence bands show us the probability that a parameter will fall between a pair of values around the mean. 
+
+```
+
+6C
+```{r 6c}
+
+#The prediction intervals are the straight dotted lines fatherst away on either side of the least squares regression line. The prediction intervals show us where we can expect to see the next data point sampled.
+
+```
+
+
+6D
+```{r 6d}
+
+
+# Asking for the linear model of of teeth data 
+teeth_lm <- lm(dateOfBirth ~ deltaC14, data = teeth)
+
+#using the predcit function, I'm asking for the prediction intervals based on the linear model of the data 
+pred_teeth <- predict(teeth_lm, interval = "prediction")
+
+#using the predcit function, I'm asking for the confidence bands based on the linear model of the data 
+conf_teeth <- predict(teeth_lm, interval = "confidence")
+
+#combining the teeth data, prediction intervals, and confidence bands into one data frame to use to plot 
+combo_teeth <- data.frame(teeth, pred_teeth, conf_teeth)
+
+#setting my plot using ggplot 
+teeth_plot <- ggplot(combo_teeth, mapping = aes(x=deltaC14, y=dateOfBirth)) 
+
+#asking to plot showing points, the linear model to show confidence intervals and geom ribbon to show prediction intervals 
+teeth_plot + 
+  geom_point() +
+  geom_smooth(method = lm)+
+  geom_ribbon(aes(ymin= lwr, ymax=upr), alpha = .18)
+
+
+```
+
+My github homework link is here: https://github.com/Jbarrone95/Biol-607-Homework- 
