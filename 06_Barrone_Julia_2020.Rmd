@@ -1,0 +1,187 @@
+---
+title: 'Homework #6'
+author: "Julia Barrone"
+date: "10/17/2020"
+output: html_document
+---
+
+0.
+```{r 0}
+
+#loading the libraries that I need 
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+
+
+#I did the faded examples and I think they are very beneficial to commit code to memory. I do understand the steps but I guess I still struggle with trying to interpret the results of the qqplot since it can be hard to judge if the data matches the line.   
+
+```
+
+1.
+```{r 1}
+
+#I naturally gravitate toward inductive reasoning because I'm not good with abstract ways of thinking. Theory seems very hard to understand and abstract unless I have a tangible example or observation to go by. I process things more easily when I see something first before I can infer and formulate a hypothesis regarding the bigger theory behind it. 
+ 
+```
+
+
+
+2A.
+```{r 2a}
+
+#I more strongly identify with Popperian falsification because throughout my science courses, I've been taught to always start with a question. Once the question is asked, a hypothesis should be formulated. Next, to test the hypothesis, an experiment should be formulated and based on the data that can either confirm or deny the question asked. Of course, in science, nothing is that clear cut. To support this, Popper said "There can be no ultimate statements science: there can be no statements in science which can not be tested, and therefore none which cannot in principle be refuted, by falsifying some of the conclusions which can be deduced from them." He is saying that there can be no absolute statements made in science, every statement made in science should be testable and thus refutable. And that is true and can be seen in scientific literature. Older theories are sometimes refuted and replaced with new theories because science is collaborative and it can be seen as everyone adding pieces to the puzzle to help get a clearer image of the bigger picture which ultimately increases understanding.  
+
+```
+
+2B.
+```{r 2b}
+
+#For my research program, I'm planning on analyzing Sphingidae datasets from GBIF, BAMONA and potentially other sources from North America. I am still at the very beginning stages of my research but currently, I want to see if any Sphingidae species are advancing emergence times in the spring. If I find a trend, I want to compare emergence time with temperature, precipitation, long/lat and other variables to see if there is a correlation. I want to see to what species are being affected and to what extent. I know in the previous question I mentioned that I lean towards inductive reasoning but I am trying get more into deductive reasoning because my research will follow the steps of beginning with a known theory(that species are advancing their spring emergence times with increasing temperatures) and hypothesizing and analyzing the data to see if the data agrees with the theory.      
+
+```
+
+2C. EC
+```{r 2c}
+
+#Paul Feyerabend described his core idea of science as "anarchistic". He had a very opposite view of thinking scientifically. He rejected the traditional methodological ways of scientific thinking claiming that it was restrictive limiting to advancements. In other words, he encouraged thinking "outside the box" when it came to science. He opposed the "consistency criterion" where new theories have to be in agreeance with old theories. Just becuase old theory and new theory agree, he would argue that it does not increase the validity of that new theory and people are often biased to agree with new theories that are comparable to older theories. In other words, people will often lean towards the status quo and stick with familiar things rather than favor theories that challenge or are incompatible with older proposed theories.     
+
+
+
+# Citation: https://en.wikipedia.org/wiki/Paul_Feyerabend#:~:text=Feyerabend%20described%20science%20as%20being,many%20scientists%20towards%20alternative%20traditions.
+
+```
+
+PUFFERS.
+3.
+```{r puff grid sampling}
+
+#loading the pufferfish data
+puff <- data.frame("resemblance" = c(1,1,1,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,4), "predators" = c(2,6,5,5,0,3,11,6,8,11,7,11,9,15,15,11,11,11,18,14))
+
+lm(puff) #asking for the linear model of the data in which I can find the intercept and slope 
+puff_lm <- lm(data = puff, predators ~ resemblance) 
+
+#plotting to see how predators respond to resemblance 
+plot(puff_lm)
+
+#Coefficients:
+#(Intercept)  resemblance  
+#      1.925        2.989  
+
+
+#setting a function to calculate the slope, intercept and residual sd, which is likelihood 
+norm_likelihood <- function(slope, intercept, res_sd){
+
+#data generating process 
+puff_new <- slope + intercept * puff$resemblance 
+
+#getting log likelihood, log of product is sum of the logs 
+sum(dnorm(puff$predators, puff_new, res_sd, log = TRUE))
+
+}
+
+?dnorm
+
+#using crossing to estimate slope, intercept and res_sd. Those estimations were made by looking at the lm generated above. This is grid sampling
+puff_dist <- crossing(slope = seq(2,3, by = 0.1), 
+                      intercept = seq(1,2, by = 0.1),
+                      res_sd = seq(2,4, by = 0.1)) %>%
+  rowwise() %>%
+  mutate(log_lik = norm_likelihood(slope, intercept, res_sd)) %>% 
+  ungroup() #asking for a log likelihood column of values for each row using the function 
+
+#filter to max likelihood 
+puff_MLE <- puff_dist %>%
+  filter(log_lik == max(log_lik)) %>% as.data.frame()
+
+#comparing lm to our model 
+sd(residuals(puff_lm)) 
+#[1] 2.971769 ix lm 
+
+#Our model lm predicted slope of 3, intercept 2 and residual sd of 3.4. This is close to our actual values 
+
+
+
+
+```
+
+2.
+```{r puff surfaces}
+
+#creating a new dataset filtering out max res_sd from the puff_MLE dataset. Changing slope and intercept sequence will zoom in and out of the plot 
+puff_surface <- crossing(slope = seq(1,4, by = 0.1), 
+                      intercept = seq(1,5, by = 0.1),
+                      res_sd = puff_MLE$res_sd) %>%
+  rowwise() %>%
+  mutate(log_lik = norm_likelihood(slope, intercept, res_sd)) %>% 
+  ungroup()
+
+
+#plotting my new dataset using slope on the x axis, the intercept on the y and likelihood as the gradient on the 2D surface 
+ggplot(data= puff_surface, 
+       mapping=aes(x=slope,
+                   y=intercept,
+                   fill= log_lik)) +
+  geom_raster()+
+  scale_fill_viridis_c()
+
+
+```
+
+3. 
+```{r puff glm}
+
+#using generalized linear model to predict the maximum likelihood estimate of our puff data with predators as the response variable to resemblance. 
+puff_mod <- glm(predators ~ resemblance,
+                family = gaussian(link = "identity"),
+                data = puff)
+#Coefficients:
+#(Intercept)  resemblance  
+#      1.925        2.989 
+      
+      
+#Our Assumtions
+#No relationship between fitted and residual values
+#Residuals follow normal distribution
+#The surface is peaked approximately symmetrically
+
+#assumptions 
+fitted <- predict(puff_mod) #getting fitted values 
+res <- residuals(puff_mod) #getting residual values 
+
+qplot(fitted, res) #should have no relationship and this plot doesn't appear to have a relationship, which validates the assumption  
+
+qqnorm(res) 
+qqline(res) #in the QQ plot, the data points should follow line similarly to the line and in this case, they do, which validates the assumption 
+
+
+library(MASS)
+plot(profile(puff_mod)) #linear 
+#tau should be a straight line because it is a summed square root  
+
+library(profileModel)
+
+#asking for the profileModel, asking for a profile of ordinary deviance and to get the confidence intervals 
+prof <- profileModel(puff_mod,
+                     objective = "ordinaryDeviance",
+                     quantile = qchisq(0.95, 1))
+
+#null model 
+puff_mod_null <- glm(predators ~ 1,
+                    family = gaussian(link="identity"),
+                    data = puff)
+
+#LRT test of model, want a difference between null model and predicted to be able to reject the null(look at p-value)
+anova(puff_mod_null, puff_mod, test = "LRT")
+#pvalue is 1.679e-07
+
+plot(prof) #parabolic visualization 
+
+#t-tests of parameters
+summary(puff_mod)
+
+```
+
+
+My github homework link is here: https://github.com/Jbarrone95/Biol-607-Homework- 
