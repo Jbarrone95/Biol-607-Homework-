@@ -1,0 +1,747 @@
+---
+title: "Bio 607 Mideterm"
+author: "Julia Barrone"
+date: "11/1/2020"
+output: html_document
+---
+1) Each of you has a study system your work in and a question of interest. Give an example of one variable that you would sample in order to get a sense of its variation in nature. Describe, in detail, how you would sample for the population of that variable in order to understand its distribution. Questions to consider include, but are not limited to: Just what is your sample versus your population? What would your sampling design be? Why would you design it that particular way? What are potential confounding influences of both sampling technique and sample design that you need to be careful to avoid? What statistical distribution might the variable take, and why?
+```{r 1}
+
+#I am in the Stevenson lab and the focus of the lab is on moths, specificially Sphingidae. The PhD student in the lab is looking into causes of polymophism in certain Sphingidae species and for my master's thesis, I am planning on analyzing Sphingidae occurrence datasets to investigate phenology changes, if there are any. Specifically, I want to see if phenology is advancing and if I can quantify to what extent. I also want to see what variables may be correlated with the advancing phenology such as temperature, precipitation, photoperiod, latitude/longitude, etc. My thesis work is in it's infancy as I am just gathering datasets. My analysis and what I find will shape the direction of my research. 
+
+
+#Just what is your sample versus your population? 
+#To generate these occurrence datasets, researchers or citizen scientists will sample by light or photo traps for nocturnal species and transect sampling for day flying moths. Our sample will be a portion of the population but with the goal that the sample will accurately represent the larger portion in Massachusetts. With citizen science data, like inaturalist, often there is no protocol for sampling. It is whenever the citizen scientist has availability to go out and make observations. Often the data is biased because a majority of observations come from urbanized areas so rural areas are underrepresented. However, records on inaturalist are very refined because they go through an ID process in which member of the community must confirm an identification before the obervation can be deemed "Research Grade" Another benefit is that because the observation is recorded by a mobile phone, accuracy of date and location is ensured as well. It would be nearly impossible to sample all members of a population so the best we can do is get a decent sample size and use models to predict the true population. 
+
+
+#What would your sampling design be? 
+#This summer, I accompanied the phD student and we sampled in state parks with light traps from evenings to early in the morning the next day. We sampled in state parks as opposed to urbanized areas because species richness is better since a state park provides much more natural habitat than urbanized streets. In state parks we have a better chance of sampling a greater number of species based on habitat availability. For gathering data about diurnal moths, transects should be used. Transects are marked lengths of area that a person walks at regular intervals which could be days, weeks or months. Prime mothing season in Massachusetts runs from May to October and during that time frame, it is best to sample as often as one can to get a good sample. Observation and collection of both adults and caterpillars is valuable. 
+
+
+#Why would you design it that particular way? 
+#Sampling with protocol and structure is much better then sampling randomly and infrequently because it makes the data more robust. In an ideal world, sampling every night or every week of late spring to early fall season would be ideal to capture a representative sample of the population, especially different broods or species that emerge later throughout the season. However, it is difficult to design this way because of limited resources, weather constraints and other factors that go into field work.
+
+
+#What are potential confounding influences of both sampling technique and sample design that you need to be careful to avoid?
+#There are many confounding influences of sampling technique. There might be a different skill level of the person collecting at the light traps. A novice collector might oversee or misidentify a moth. Also, human error. A moth can easily be missed if it in the grass and not illuminated by the light on the sheet. Sampling design would have to be uniform in that the same type of lights are used for the same duration during the study. Different lights are known to attract different types of moth species which would bias sample design and data quality. 
+
+  
+#What statistical distribution might the variable take, and why?
+#For data collected at a light trap, we could expect to see multiple distributions depending on the species. Some moth species fly early in the season and some fly later in the season. Thus, we'd see a left or right skewed distribution. Some species fly in the middle of the summer and we'd expect to see a normal distribution with a peak in the middle of the summer. The distributions will also vary depending if the species is multi or univoltine. 
+  
+```
+
+2A. Download and read in the data. Can you do this without downloading, but read directly from the archive (+1).
+```{r 2A}
+
+library(readr)
+
+#reading in the data without downloading the csv 
+urlfile="https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv"
+
+#naming the new data
+covid <-read_csv(url(urlfile))
+
+```
+
+
+2B. The data is, well, huge. It’s also wide, with dates as columns. Write a function that, given a state, will output a time series (long data where every row is a day) of cummulative cases in that state as well as new daily cases.
+
+Note, let’s make the date column that emerges a true date object. Let’s say you’ve called it date_col. If you mutate it, mutate(date_col = lubridate::mdy(date_col)), it will be turned into a date object that will have a recognized order. {lubridate} is da bomb, and I’m hoping we have some time to cover it in the future.
+
++5 extra credit for merging it with some other data source to also return cases per 100,000 people.
+```{r 2B}
+
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+
+
+#filtering down to just state, district and dates columns to make the data frame easier to work with
+condense_covid <- covid[,c(6,7,12:298)]
+
+
+#write a function that given a state, will output a time series
+#starting my function
+state_function <- function(state){
+ 
+
+  #have the data pivot wider 
+  covid_longer <- pivot_longer(condense_covid, -c(Admin2, Province_State),
+               names_to = "date_col",
+               values_to = "value") %>%
+      #mutating the dates column to have a recognized order and adding a cumulative sum column
+  mutate(date_col = lubridate::mdy(date_col))
+  
+  
+    #asking for a certain state 
+ specific_state <- covid_longer %>%
+   #adding a new column showing the daily case values because the original data in covid_longer is giving us cumulative case values. So we need to use lag which will shift the time base back by a given number of observations, in this case, a day. 
+   mutate(daily_cases = value - (lag(value, k =1))) %>%
+   #selecting a specific state in the list of states
+   filter(Province_State == state) %>%
+   #summarizing each column in the dataframe 
+   summarize(Province_State, date_col, value, daily_cases)
+ 
+ #asking for a new dataframe output 
+ new_covid <- specific_state %>% 
+   #grouping by the dates
+   group_by(date_col) %>%
+   #summarizing the sum of daily cases and cumulative cases 
+   summarize(new_daily_cases =sum(daily_cases),
+             cumulative_cases = sum(value)) %>%
+   #filtering out negative case values from the lag function so we can plot 
+   filter(new_daily_cases >=0)
+
+  return(new_covid)
+}
+
+#Testing to see if my function works
+#My function returns a dataframe containing daily values for each state along with cumulative case values 
+TX <- state_function("Texas")
+MA <- state_function("Massachusetts")
+MA #viewing dataframe
+TX
+
+```
+
+2C. Great! Make a compelling plot of the timeseries for Massachusetts! Points for style, class, ease of understanding major trends, etc. Note, 10/10 only for the most killer figures. Don’t phone it in! Also, note what the data from JHU is. Do you want the cummulatives, or daily, or what?
+```{r 2C}
+
+library(ggplot2)
+
+#getting data frame for time series of Massachusetts using my function in 2B 
+MA <- state_function("Massachusetts")
+
+#Separating the date column so I can distinguish months by color in my plots 
+MA_sep_date <- separate(MA, "date_col", c("Year", "Month", "Day"), sep = "-", remove = FALSE)
+
+#loading cowplot so I can put two plots into one plot 
+library(cowplot)
+
+#plot for showing new daily cases 
+plot_1 <- ggplot(data = MA_sep_date %>% 
+                       filter(new_daily_cases >=0 ),
+                         mapping = aes(x= date_col,
+                                       y=new_daily_cases,
+                           color = Month)) +
+  geom_point() + 
+  geom_line() +
+   labs(title = "Daily Covid Cases in MA",
+       x = "Date",
+       y = "New Cases by Day")
+#adding title and axis titles 
+
+#plot for showing cumulative cases 
+plot_2 <- ggplot(data = MA_sep_date %>% 
+                       filter(new_daily_cases >=0 ),
+                         mapping = aes(x= date_col,
+                                       y=cumulative_cases,
+                           color = Month)) +
+  geom_point() + 
+  geom_line() +
+    labs(title = "Cumulative Covid Cases in MA",
+       x = "Date",
+       y = "Cumulative Cases")
+#adding title and axis titles 
+
+#plotting my two plots separately. I tried plotting daily cases and cumulative together but I didn't like how the y axis became so big so I decided to plot them separately to best represent the trends 
+plot_grid(plot_1, plot_2, labels = "AUTO")
+
+
+```
+
+2D. Cool. Now, write a function that will take what you did above, and create a plot for any state - so, I enter Alaska and I get the plot for Alaska! +2 if it can do daily or cumulative cases - or cases per 100,000 if you did that above. +3 EC if you highlight points of interest - but dynamically using the data. Note, you might need to do some funky stuff to make things fit well in the plot for this one. Or, meh.
+```{r 2D}
+
+library(cowplot)
+#loading the library I need to generate my plot from above 
+
+#using my state function from 2B 
+state_plot_function <- function(state_plot){
+ 
+
+  #have the data pivot wider 
+  covid_longer <- pivot_longer(condense_covid, -c(Admin2, Province_State),
+               names_to = "date_col",
+               values_to = "value") %>%
+      #mutating the dates column to have a recognized order and adding a cumulative sum column
+  mutate(date_col = lubridate::mdy(date_col))
+  
+  
+    #asking for a certain state 
+ specific_state <- covid_longer %>%
+   #adding a new column showing the daily case values because the original data in covid_longer is giving us cumulative case values. So we need to use lag which will shift the time base back by a given number of observations, in this case, a day. 
+   mutate(daily_cases = value - (lag(value, k =1))) %>%
+   #selecting a specific state in the list of states
+   filter(Province_State == state_plot) %>%
+   #summarizing each column in the dataframe 
+   summarize(Province_State, date_col, value, daily_cases)
+ 
+ #asking for a new dataframe output 
+ new_covid <- specific_state %>% 
+   #grouping by the dates
+   group_by(date_col) %>%
+   #summarizing the sum of daily cases and cumulative cases 
+   summarize(new_daily_cases =sum(daily_cases),
+             cumulative_cases = sum(value)) %>%
+   #filtering out negative case values so I can plot 
+   filter(new_daily_cases >= 0) 
+ 
+ #separating the date column into year, month and day 
+ sep_date <- separate(new_covid, "date_col", c("Year", "Month", "Day"), sep = "-", remove = FALSE)
+ 
+ #plot showing daily cases
+ plot_1 <- ggplot(data = sep_date %>% 
+                       filter(new_daily_cases >=0 ),
+                         mapping = aes(x= date_col,
+                                       y=new_daily_cases,
+                           color = Month)) +
+  geom_point() + 
+  geom_line() +
+   labs(title = "Daily Covid Cases",
+       x = "Date",
+       y = "New Cases by Day")
+
+#plot for showing cumulative cases 
+plot_2 <- ggplot(data = sep_date %>% 
+                       filter(new_daily_cases >=0 ),
+                         mapping = aes(x= date_col,
+                                       y=cumulative_cases,
+                           color = Month)) +
+  geom_point() + 
+  geom_line() +
+    labs(title = "Cumulative Covid Cases",
+       x = "Date",
+       y = "Cumulative Cases")
+
+#plotting my two plots together. I tried plotting daily cases and cumulative together but I didn't like how the y axis became so big so I decided to plot them separately to best represent the trends 
+state_plot <- plot_grid(plot_1, plot_2, labels = "AUTO")
+
+#return the plot 
+  return(state_plot)
+
+}
+
+
+#testing to see if my plot function works. It returns a plot containing daily cases and one with cumulative cases for the state
+state_plot_function("Maryland")
+
+
+```
+
+
+3. We have discussed multiple inferential frameworks this semester. Frequentist NHST, Likelihood and model comparison, Baysian probabilistic thinking, Assessment of Predictive Ability (which spans frameworks!), and more. We’ve talked about Popper and Lakatos. Put these pieces of the puzzle together and look deep within yourself.
+
+What do you feel is the inferential framework that you adopt as a scientist? Why? Include in your answer why you prefer the inferential tools (e.g. confidence intervals, test statistics, out-of-sample prediction, posterior probabilities, etc.) of your chosen worldview and why you do not like the ones of the other one. This includes defining just what those different tools mean, as well as relating them to the things you study. extra credit for citing and discussing outside sources - one point per source/point
+```{r 3}
+
+#I feel like I best relate to a Bayesian inferential framework. I use "priors", or my prior knowledge of a topic to help me make informed decisions, not only as a scientist but also in regular life.  As a scientist, this involves researching a topic, having prior knowledge and then forming an idea that is a reasonable, testable hypothesis of what you think you'll find based on what you know. As academics, we are all building upon and updating our knowledge as new information and discoveries come out. In science, there is still so much we don't know about the natural world. Bayes theorem believes that there is no absolute definite answer. We just increase our degree of belief towards something. I believe that to be true in science, especially thinking in an ecological sense. As technology, techniques and models have advanced, of course we have increased our level of understanding about concepts from the natural world but I do not think we will ever get a clear, absolute view of the natural world just because it is constantly changing and there are so many factors that we cannot possibly account for or comprehend.  
+
+
+#Confidence intervals are useful in that they show the probability that a  value will fall between a set of estimated values. In other words, it is the interval that is a given percentage of certainty that the true value lies within the given parameters. Generally, there are upper and lower limit confidence intervals and they are helpful indicators, especially visually on a graph, to see how the sample mean of the data is distributed around the true population mean.
+
+#Test statistics results from a statistical test that may be used to test a hypothesis. Test statistics can get confusing for me since they have different definitions and are all explaining different things about the data. Test statistics can give clarification on how different groups are from each other or from the whole population. Or how data differs from the expected data given a null hypothesis. I find test statistics very helpful and the ones that I've encountered most are pvalues and r squared values. This class is expanding my view on other test statistics, such as f-tests, t-tests, etc and they are valuable test statistics to know and be aware of. 
+
+
+#Initially, I was not familiar with out-of-sample prediction but after a little searching, I understand out-of-sample prediction as something similar to the idea of "leave one out" cross validation. In out-of-sample prediction, data is intentionally left out to assess how good the model of choice is at predicting results of the data that was left out. This is the idea of having a training and a test dataset. The test data is the data that is left out. This is useful because when the model is built on the training data and when it is run with the testing data, the results can be compared with the actual outcomes. I have no experience with out of sample prediction except for homework examples for this class. I definitely see its value and it is something that I will keep in mind as a tool for the future. 
+
+
+#A posterior probability originates from a Bayesian framework. It is a probability of an event occurring taking into account some prior knowledge, usually another event. The probability is constantly being updated because prior knowledge keeps changing. The prior and the posterior can be calculated in Baye's theorem. One can think of posterior probability as the probability of H(hypothesis) given the D(data). This is how I think as a scientist when asking questions. I do not know how a hypothesis can be accepted or rejected without prior knowledge, such as the data. This class has given me an in depth introduction to Bayes and I will continue to use this inferential framework in the future.  
+
+
+```
+
+4. I’ve referenced the following figure a few times. I’d like you to demonstrate your understanding of Bayes Theorem by hand (e.g. calculate it out and show your work - you can do this all in R, I’m not a monster) showing what is the probability of the sun exploding is given that the device said yes. Assume that your prior probability that the sun explodes is p(Sun Explodes) = 0.0001 (I’ll leave it to you to get p(Sun Doesn’t Explode). The rest of the information you need - and some you don’t - is in the cartoon - p(Yes | Explodes), p(Yes | Doesn’t Explode), p(No | Explodes), p(No | Doesn’t Explode).
+```{r 4}
+
+#This is the information that we know 
+#p(Sun Explodes) = 0.0001 
+#p(Sun Doesn’t Explode) = 1- 0.0001 = 0.9999
+
+#This is the information that we know about the neutrino machine. It lies to us or tells us the truth 
+#Lie = 0.027 (1/36)
+#Truth = 0.9722222 (35/36)
+
+#This is what we need to find out.. probability of sun exploding is given that the device said yes
+#P(Yes|Explodes )
+
+#Bayes Theorem 
+#p(a|b) = p(b|a)*p(a)/p(b)
+
+#So we want to find p(a|b) which in our case is p(yes|explodes) so we need to calculate p(explodes|yes) * p(yes)/p(explodes). p(b), in our case, p(explodes) is the probability that the detector will actually detect an explosion, so it's the probability of the detector saying yes. Thus, that can be calculated by p(yes|explodes) + p(yes|no explode)
+
+((35/36)*0.0001) + ((1/36)*(0.9999)) #= 0.02787222
+
+#Now we have all the compents necessary to mathmatically calculate 
+
+#P(Yes|Explodes) = 
+(((35/36))*0.0001)/0.02787222 #= 0.003488141
+0.003488141* 100 # = 0.3488141 chance that the sun will explode and the machine saying yes 
+
+```
+
+EC. 4A Why is this a bad parody of frequentist statistics?
+```{r 4A}
+
+#There are a few reasons why one might interpret this as a bad parody of a frequentist. First, the sun exploding is not an event that can be tested repeatedly. Repeatability is important for any hypothesis testing. Second, a real frequentist would have gathered more data before making a decision to assume that the sun has exploded. Also, the 0.027 was not the actual p-value but the frquentist is interpreting 0.027 as the p-value. The 0.027 is the chance of the neutrino detector lying. The p-value uses the data and it gives the probability of finding the observed results given that the null hypothesis is true. Many people misinterpret the p-value and think it's the probability of of something happening. 
+
+```
+
+5A. To begin with, I’d like you to fit the relationship that describes how Tarsus (leg) length predicts upper beak (Culmen) length. Fit this relationship using least squares, likelihood, and Bayesian techniques. For each fit, demonstrate that the necessary assumptions have been met. Note, functions used to fit with likelihood and Bayes may or may not behave well when fed NAs. So look out for those errors.
+```{r 5A}
+
+#read in the data 
+quail <- read.csv("Morphology data.csv")
+
+#omit NAs from the data so that they will behave well with the models 
+quail_no_na <- na.omit(quail)
+
+#----------------------------------------------
+
+#LEAST SQUARES  
+
+#finding the linear model of the quail data, this provides us the intercept and slope 
+quail_mod_lm <- lm(Culmen..mm. ~ Tarsus..mm., data = quail_no_na)
+
+#Coefficients:
+#(Intercept)  Tarsus..mm.  
+#   -0.09871      0.37293 
+
+#visualizing data with ggplot
+quail_plot <- ggplot(data=quail_no_na, aes(x= Tarsus..mm., y=Culmen..mm.)) +
+  geom_point()
+
+#viewing plot to see relationship of Culmen and Tarsus - positive relationship 
+quail_plot
+
+
+#testing assumptions 
+plot(quail_mod_lm, which=1)
+plot(quail_mod_lm, which=2)
+#looks good, not distinct pattern in the scatter plot and the QQplot follows the straight line well 
+
+#f-tests of model 
+anova(quail_mod_lm)
+# high f-test value 
+
+#t-tests of parameters
+summary(quail_mod_lm)
+#low standard error and r value is saying that there is a relationship between Tarsus and Culmen 
+
+#plot with line 
+quail_plot + 
+  stat_smooth(method=lm, formula=y~x)
+#it looks like a positive relationship 
+
+#----------------------------------------------
+#LIKELIHOOD 
+
+#getting generalized linear model of quail data 
+quail_mod_glm <- glm(Culmen..mm. ~ Tarsus..mm.,
+                 data = quail_no_na,
+                 family = gaussian(link = "identity"))
+#Coefficients:
+#(Intercept)  Tarsus..mm.  
+#   -0.09871      0.37293  
+#Coefficients identical to lm fit 
+
+#asking for residuals 
+quail_res <- residuals(quail_mod_glm)
+#asking for the fitted values 
+quail_fit <- predict(quail_mod_glm)
+
+#testing assumptions 
+qplot(quail_res, quail_fit)
+#good scatter, no distinct pattern 
+
+#The fit of the residuals looks pretty good
+qqnorm(quail_res)
+qqline(quail_res)
+
+library(profileModel)
+
+
+#using profileModel to profile the GLM of the data 
+quail_profile <- profileModel(quail_mod_glm,
+                              objective = "ordinaryDeviance")
+
+#viewing profile 
+plot(quail_profile)
+#showing slightly different slope and intercept values 
+
+#profiles with confidence intervals 
+quail_profile_ci <- profileModel(quail_mod_glm,
+                                 objective = "ordinaryDeviance",
+                                 quantile = qchisq(0.95, 1))
+
+#viewing profile with confidence intervals 
+plot(quail_profile_ci)
+
+
+#-----------------------------------------
+#BAYES
+library(brms)
+#equation for bayes model.. using link identity since we aren't transforming our data
+quail_bayes <- brm(Culmen..mm. ~ Tarsus..mm.,
+                     family = gaussian(link= "identity"),
+                     data = quail_no_na)
+
+quail_bayes
+
+#visually investigate our chains. they all converge and are well behaved
+plot(quail_bayes)
+
+#looking at intercept, normal distribution  
+plot(quail_bayes, par = "b_Intercept")
+
+#look at a diagnositc of convergence 
+rhat(quail_bayes)
+#showing interept, slope, sigma and log posterior. data looks good - all values close to 1
+
+
+library(bayesplot)
+library(tidybayes)
+
+mcmc_trace(quail_bayes)
+#assess autocorrelation
+
+
+#check our MODEL assumptions ####
+
+#Check the match between our data and our choices
+#for distributins of y 
+pp_check(quail_bayes, "dens_overlay") 
+#fit looks good
+
+#Is our error normal? 
+#did we miss a nonlinearity? 
+pp_check(quail_bayes, "error_hist", bins = 10) 
+#looks good, shows normal distribution 
+
+#viewing scatter plot
+pp_check(quail_bayes, "error_scatter")
+#relationship looks linear for the most part 
+
+#viewing average scatter plot 
+pp_check(quail_bayes, "error_scatter_avg")
+#observed vs error. should be positive 
+
+#fitted vs residual 
+quail_res <- residuals(quail_bayes) %>% as_tibble
+quail_fit <- fitted(quail_bayes) %>% as_tibble
+
+qqnorm(quail_res$Estimate)
+qqline(quail_res$Estimate)
+
+plot(y=quail_res$Estimate, x=quail_fit$Estimate)
+
+print(summary(quail_bayes), digits = 5)
+#Population-Level Effects: 
+#            Estimate Est.Error l-95% CI u-95% CI    Rhat 
+#Intercept   -0.09711   0.21607 -0.52354  0.32870 1.00072 
+#Tarsus..mm.  0.37289   0.00667  0.35970  0.38605 1.00073 
+```
+
+5B OK, now that we have fits, take a look! Do the coefficients and their associated measures of error in their estimation match? How would we interpret the results from these different analyses differently? Or would we? Note, confint works on lm objects as well.
+```{r 5B}
+
+#The lm model and glm model produced exactly the same coefficients and measures of error. This isn't too surprising since glm is just a more customizable model of lm. We can interpret the lm and glm coefficients and measures of error the same. The lm and glm confidence intervals tell us the certainty that the true value lies within the given parameters. Bayes, on the other hand, cannot be interpreted in the same way as glm and lm. Bayes results were very similar to lm and glm however the bayes model measures the degree of belief. It works with priors to provide informed posterior probabilities. The bayes model also does not deal with confidence intervals, rather credible intervals. Credible intervals show the uncertainty related to the parameters. Simply put, it is the range of a certain percentage of probable values. Had we put in a prior in our bayes model, we would have gotten more notable differences from the glm and lm. All models worked well to confirm that there is a relationship between Culmen and Tarsus. 
+
+
+#LEAST SQUARES  
+
+#finding the linear model of the quail data, this provides us the intercept and slope 
+quail_mod <- lm(Culmen..mm. ~ Tarsus..mm., data = quail_no_na)
+
+#Coefficients:
+#(Intercept)  Tarsus..mm.  
+#   -0.09871      0.37293 
+
+
+summary(quail_mod)
+#Coefficients:
+#             Estimate Std. Error t value Pr(>|t|)    
+#(Intercept) -0.098707   0.215450  -0.458    0.647    
+#Tarsus..mm.  0.372927   0.006646  56.116   <2e-16 ***
+
+
+confint(quail_mod)
+#  2.5 %    97.5 %
+#(Intercept) -0.5209805 0.3235663
+#Tarsus..mm.  0.3599015 0.3859520
+
+#----------------------------------------------
+#LIKELIHOOD 
+ 
+summary(quail_mod_glm)
+#Coefficients:
+#             Estimate Std. Error t value Pr(>|t|)    
+#(Intercept) -0.098707   0.215450  -0.458    0.647    
+#Tarsus..mm.  0.372927   0.006646  56.116   <2e-16 ***
+
+?confint
+
+confint(quail_mod_glm)
+#2.5 %    97.5 %
+#(Intercept) -0.5209805 0.3235663
+#Tarsus..mm.  0.3599015 0.3859520
+
+#-----------------------------------------
+#BAYES
+
+print(summary(quail_bayes), digits = 5)
+#Population-Level Effects: 
+#            Estimate Est.Error l-95% CI u-95% CI
+#Intercept   -0.09553   0.21603 -0.51314  0.32800
+#Tarsus..mm.  0.37284   0.00663  0.35970  0.38558
+
+fixef(quail_bayes)
+#              Estimate   Est.Error       Q2.5     Q97.5
+#Intercept   -0.1010504 0.219950593 -0.5400430 0.3346686
+#Tarsus..mm.  0.3730113 0.006811523  0.3592005 0.3864505
+
+```
+
+5C. For your likelihood fit, are your profiles well behaved? For just the slope, use grid sampling to create a profile. You’ll need to write functions for this, sampling the whole grid of slope and intercept, and then take out the relevant slices as we have done before. Use the results from the fit above to provide the reasonable bounds of what you should be profiling over (3SE should do). Is it well behaved? Plot the profile and give the 80% and 95% CI (remember how we use the chisq here!). Verify your results with profileModel.
+```{r 5C}
+
+library(bbmle)
+
+#creating a likelihood function 
+norm_likelihood <- function(slope, intercept){
+
+#data generating process. linear regression equation(y = mx + b )
+quail_new <- slope*quail_no_na$Tarsus..mm. + intercept
+
+#getting log likelihood, log of product is sum of the logs 
+sum(dnorm(quail_no_na$Culmen..mm., quail_new, log = TRUE))
+
+}
+
+#creating a grid that's a tibble that includes slope and intercept
+quail_grid <- tibble(slope = seq(0.35,0.395, length.out = 100),
+                  #intercept and slope sequences are estimations 
+                     intercept = seq(-0.73,0.54, length.out = 100)) %>%
+  group_by(slope, intercept) %>%
+  #creating a log likelihood and deviance column 
+  mutate(log_lik = norm_likelihood(slope, intercept),
+         deviance = -2 * log_lik) %>% 
+  ungroup() 
+
+#getting the 80% and 95% confidence intervals 
+qchisq(0.95, df = 1)/2 #1.920729
+qchisq(0.80, df = 1)/2 # 0.8211872
+
+library(ggplot2)
+
+#plot my grid data with slope on the x and log liklihood on the y
+ggplot(data=quail_grid,
+       mapping=aes(x=slope,
+                  y=log_lik)) +
+  #adding the 90% confidence interval to the plot 
+  geom_point() +
+  geom_line(data = quail_grid %>% filter(log_lik > (max(log_lik) - 1.92)) %>%
+              as.data.frame() %>%
+              head(),
+            mapping = aes(x = slope, y=log_lik), color = "red", size=5) +
+  #adding the 80% confidence interval to the plot 
+  geom_line(data = quail_grid %>% filter(log_lik >= (max(log_lik) - 0.82)) %>%
+          as.data.frame() %>%
+              head(),
+            mapping = aes(x = slope, y=log_lik), color = "blue", size=5)
+
+
+quail_mle <- glm(Culmen..mm. ~ Tarsus..mm.,
+                data = quail_no_na,
+                family = gaussian(link = "identity"))
+
+#compare with profileModel 
+quail_prof_model <- profileModel(quail_mle, 
+                     objective = "ordinaryDeviance",
+                     quantile = qchisq(0.8,0.95))
+plot(quail_prof_model)
+
+#our profile is well behaved. It produced a nice parabola and matches our profile model well. The slope peaks on our graph around .373  which matches the profileModel 
+
+
+```
+
+
+5D. This data set is pretty big. After excluding NAs in the variables we’re interested in, it’s over 766 lines of data! Now, a lot of data can overwhelm a strong prior. But only to a point. Show first that there is enough data here that a prior for the slope with an estimate of 0.7 and a sd of 0.01 is overwhelmed and produces similar results to the default prior. How different are the results from the original?
+
+Second, randomly sample 10, 100, 300, and 500 data points. At which level is our prior overwhelmed (e.g., the prior slope becomes highly unlikely)? Communicate that visually in the best way you feel gets the point across, and explain your reasoning.
+
++4 for a function that means you don’t have to copy and paste the model over and over. + 4 more if you use map() in combination with a tibble to make this as code-efficient as possible. This will also make visualization easier.
+```{r 5D}
+
+#setting our prior using bayes. estimate of 0.7 and sd of 0.01. This is our strong prior
+quail_lm_prior_strong <- brm(Culmen..mm. ~ Tarsus..mm.,
+                      data = quail_no_na,
+                     family = gaussian(link= "identity"),
+                     prior = c(prior(coef = "Tarsus..mm.",                              
+                     prior = normal(0.7, 0.01))), chains = 3)
+ 
+#randomly sampling 10 data points 
+quail_lm_prior_10 <- brm(Culmen..mm. ~ Tarsus..mm.,
+                      data = quail_no_na %>% sample_n(10),
+                     family = gaussian(link= "identity"),
+                     prior = c(prior(coef = "Tarsus..mm.",                              
+                     prior = normal(0.7, 0.01))), chains = 3)
+#taking our quail data and taking 10 points and running them in a chain  
+
+
+#randomly sampling 100 data points 
+quail_lm_prior_100 <- brm(Culmen..mm. ~ Tarsus..mm.,
+                      data = quail_no_na %>% sample_n(100),
+                     family = gaussian(link= "identity"),
+                     prior = c(prior(coef = "Tarsus..mm.",        
+                    prior = normal(0.7, 0.01))), chains = 3)
+#taking our quail data and taking 100 points and running them in a chain
+
+
+#randomly sampling 300 data points 
+quail_lm_prior_300 <- brm(Culmen..mm. ~ Tarsus..mm.,
+                      data = quail_no_na %>% sample_n(300),
+                     family = gaussian(link= "identity"),
+                     prior = c(prior(coef = "Tarsus..mm.",        
+                    prior = normal(0.7, 0.01))), chains = 3)
+#taking our quail data and taking 300 points and running them in a chain 
+
+
+#randomly sampling 500 data points 
+quail_lm_prior_500 <- brm(Culmen..mm. ~ Tarsus..mm.,
+                      data = quail_no_na %>% sample_n(500),
+                     family = gaussian(link= "identity"),
+                     prior = c(prior(coef = "Tarsus..mm.",        
+                    prior = normal(0.7, 0.01))), chains = 3)
+#taking our quail data and taking 500 points and running them in a chain  
+
+
+
+#turning our bayes prior samples into dataframes so we can plot them
+prior_df <- quail_lm_prior_strong %>%
+  as.data.frame()
+
+prior_df_10 <- quail_lm_prior_10 %>%
+  as.data.frame()
+
+prior_df_100 <- quail_lm_prior_100 %>%
+  as.data.frame()
+
+prior_df_300 <- quail_lm_prior_300 %>%
+  as.data.frame()
+
+prior_df_500 <- quail_lm_prior_500 %>%
+  as.data.frame()
+
+
+library(bayesplot)
+library(brms)
+library(tidybayes)
+
+
+#plotting all the random samples and our prior dataframe together on one plot. Geom density best represents the slope data. The strong prior is represented by black. 
+ggplot() +
+  geom_density(data = prior_df,
+       mapping = aes(x=b_Tarsus..mm.),
+       alpha=.5, fill="black") +
+  geom_density(data = prior_df_10,
+       mapping = aes(x=b_Tarsus..mm.),
+       alpha=1, color="blue") +
+  geom_density(data = prior_df_100,
+       mapping = aes(x=b_Tarsus..mm.),
+       alpha=1, color="pink") +
+  geom_density(data = prior_df_300,
+       mapping = aes(x=b_Tarsus..mm.),
+       alpha=1, color="purple") +
+  geom_density(data = prior_df_500,
+       mapping = aes(x=b_Tarsus..mm.),
+       alpha=1, color="green")
+
+#We can see that as soon as we sample 100, our prior becomes overwhelmed because bigger samples sizes overwhelms the prior. sample size of 10 matches the strong prior pretty well because it is a smaller sample size 
+```
+
+
+6. There is some interesting curvature in the culmen-tarsus relationship. Is the relationship really linear? Squared? Cubic? Exponential? Use one of the cross-validation techniques we explored to show which model is more predictive. Justify your choice of technique. Do you get a clear answer? What does it say?
+```{r 6}
+
+library(loo)
+library(tidyr)
+library(rsample)
+library(boot)
+library(modelr)
+
+
+#Leave one out cross validation ####
+
+#linear model using bayes 
+quail_lm_bayes <- brm(Culmen..mm. ~ Tarsus..mm.,
+                     family = gaussian(link= "identity"),
+                     data = quail_no_na)
+
+quail_loo_linear <- loo(quail_lm_bayes)
+
+#squared model using bayes 
+quail_lm_bayes_sq <- brm(Culmen..mm. ~ poly(Tarsus..mm.,2),
+                     family = gaussian(link= "identity"),
+                     data = quail_no_na)
+
+quail_loo_squared <- loo(quail_lm_bayes_sq)
+
+
+#cubic model using bayes 
+quail_lm_bayes_cubic <- brm(Culmen..mm. ~ poly(Tarsus..mm.,3),
+                     family = gaussian(link= "identity"),
+                     data = quail_no_na)
+
+quail_loo_cubic <- loo(quail_lm_bayes_cubic)
+
+#exponential model using bayes 
+quail_lm_bayes_ex <- brm(Culmen..mm. ~ poly(Tarsus..mm.,4),
+                     family = gaussian(link= "identity"),
+                     data = quail_no_na)
+
+quail_loo_exp <- loo(quail_lm_bayes_ex)
+
+
+#using loo compare to compare the different polynomials to find the best fit to the relationship
+bayes_loo_comparison <- loo_compare(quail_loo_linear, quail_loo_squared, quail_loo_cubic, quail_loo_exp)
+
+#                     elpd_diff se_diff
+#quail_lm_bayes_cubic   0.0       0.0  
+#quail_lm_bayes_ex     -1.0       0.3  
+#quail_lm_bayes       -12.2       5.3  
+#quail_lm_bayes_sq    -13.4       5.6  
+
+
+
+#--------------------------------------------
+#K-fold cross validation
+
+#using kfold to evaluate the different polynomial models 
+#linear
+kfold_linear <- kfold(quail_lm_bayes, k=5)
+
+#squares
+kfold_sqaured <- kfold(quail_lm_bayes_sq, k=5)
+
+#cubic
+kfold_cubic <- kfold(quail_lm_bayes_cubic, k=5)
+
+#exponential 
+kfold_exp <- kfold(quail_lm_bayes_ex, k=5)
+
+#using loo compare to compare the different polynomials to find the best fit to the relationship
+kfold_comparison <- loo_compare(kfold_linear, kfold_sqaured, kfold_cubic, kfold_exp)
+
+
+#                    elpd_diff se_diff
+#quail_lm_bayes_cubic   0.0       0.0  
+#quail_lm_bayes_ex     -1.6       1.2  
+#quail_lm_bayes       -11.5       5.3  
+#quail_lm_bayes_sq    -12.9       5.5  
+
+
+#After using kfold and loo cross validation to look at the relationship of Culmen and Tarsus, it is clear from the two methods that the relationship is cubic. This is shown from a comparison from our polynomial models and the cubic model resulting in 0's. Although both cross validation techniques were used, the kfold cross validation technique would be best suited for this dataset because the data is large. LOO is best suited for smaller datasets because by leaving one out, it helps keep the sample sizes reasonable during data analysis.
+```
